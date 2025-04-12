@@ -1,13 +1,14 @@
 import logging
 import os
 import traceback
-
+from urllib.parse import urlparse
 from aiohttp.web import Request, json_response
 from server import PromptServer
 import folder_paths
 
 from .model_utils.refresh import refresh_folder
 from .metrics.prometheus import get_metrics
+from .model_utils.install import install_model_url
 
 routes = PromptServer.instance.routes
 
@@ -21,12 +22,44 @@ def error_resp(code, message, **kwargs):
 
 @routes.get("/api-tools/v1/models")
 async def get_model_folders(request: Request):
+    """ List all model folders """
     folders = list(folder_paths.folder_names_and_paths.keys())
 
     return success_resp(result={"folders": folders })
 
+@routes.post("/api-tools/v1/models/install")
+async def install_model(request: Request):
+    """Install a model from url, filtered with a allow list  """
+    json_data = await request.json()
+    url = json_data.get('url')
+    allowed_domains = ["civitai.com", "github.com", "raw.githubusercontent.com", "huggingface.co"]
+    if url:
+        try:
+            parsed_url = urlparse(url)
+            domain = parsed_url.netloc
+            if domain.startswith('www.'):
+                domain = domain[4:]
+
+        # Check if the domain is in the allowed list
+            if domain not in allowed_domains:
+                return error_resp(403, f"Domain '{domain}' is not in the allowed domains list")
+        except Exception as e:
+             return error_resp(400, f"Invalid URL format: {str(e)}")
+    else:
+        return error_resp(400, "URL is required")
+
+    success, message = install_model_url(json_data)
+
+    if not success:
+        return error_resp(409, message)
+
+    return success_resp(message)
+
+
+
 @routes.get("/api-tools/v1/models/{folder}")
 async def get_model_folder(request: Request):
+    """ List all models in a folder """
     folder = request.match_info['folder']
     try:
         checkpoints = folder_paths.get_filename_list(folder)
