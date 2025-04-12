@@ -28,3 +28,22 @@ Add some extra endpoints to ComfyUI to manage / monitor remotely.
 | `/api-tools/v1/images/input/{filename}`  | DELETE | Delete the input image with the given filename         | None |
 | `/api-tools/v1/metrics`                  | GET | Prometheus metrics                                     | None |
 
+
+## Prometheus metrics
+| Metric | Key | Type | Example       | Additional Info |
+|--------|-----|------|---------------|----------------|
+| **Uptime** | `comfyui_uptime_seconds` | gauge | 21.36 seconds | ComfyUI server uptime |
+| **Memory Usage** | `comfyui_memory_usage_bytes` | gauge | 797.89 MB     | Memory usage in bytes |
+| **CPU Usage** | `comfyui_cpu_usage_percent` | gauge | 0.0%          | CPU usage percentage |
+| **Disk Usage** | `comfyui_disk_usage_bytes` | gauge | 471.19 GB     | Disk usage in bytes |
+| **Disk Usage %** | `comfyui_disk_usage_percent` | gauge | 64.7%         | Disk usage percentage |
+| **GPU Utilization** | `comfyui_gpu_utilization_percent` | gauge | 0%            | Overall GPU utilization |
+| **GPU $index Utilization** | `comfyui_gpu_utilization_percent` | gauge | 0%            | GPU $index utilization |
+| **GPU Temperature** | `comfyui_gpu_temperature_celsius` | gauge | 53°C          | Overall GPU temperature |
+| **GPU $index Temperature** | `comfyui_gpu_temperature_celsius` | gauge | 52°C          | GPU $index temperature |
+| **GPU VRAM Used** | `comfyui_gpu_vram_used_bytes` | gauge | 2.17 GB       | Overall VRAM used |
+| **GPU $index VRAM Used** | `comfyui_gpu_vram_used_bytes` | gauge | 662.07 MB     | GPU $index VRAM used |
+| **GPU VRAM Total** | `comfyui_gpu_vram_total_bytes` | gauge | 16.00 GB      | Total VRAM available |
+| **GPU $index VRAM Total** | `comfyui_gpu_vram_total_bytes` | gauge | 16.00 GB      | GPU $index VRAM total |
+| **GPU VRAM Usage %** | `comfyui_gpu_vram_used_percent` | gauge | 13.58%        | Overall VRAM usage percentage |
+| **GPU $index VRAM Usage %** | `comfyui_gpu_vram_used_percent` | gauge | 4.04%         | GPU $index VRAM usage percentage |
