@@ -1,7 +1,7 @@
 """
 Credits to Crystools
 """
-
+import logging
 import torch
 import pynvml
 import comfy.model_management
