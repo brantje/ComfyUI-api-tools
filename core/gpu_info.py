@@ -1,12 +1,15 @@
 """
 Credits to Crystools
 """
-import logging
-import torch
-import pynvml
-import comfy.model_management
-# from ctypes import *
-# from pyrsmi import rocml
+try:    
+    import logging
+    import torch
+    import pynvml
+    import comfy.model_management
+    # from ctypes import *
+    # from pyrsmi import rocml
+except Exception as e:
+    logging.error(f"Error importing modules: {e}")
 
 class CGPUInfo:
     """
