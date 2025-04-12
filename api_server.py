@@ -53,7 +53,7 @@ async def install_model(request: Request):
     if not success:
         return error_resp(409, message)
 
-    return success_resp(message)
+    return success_resp()
 
 
 
