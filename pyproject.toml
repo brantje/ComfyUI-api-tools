@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "ComfyUI-api-tools"
-version = "0.1.0"
+version = "1.0.7"
 description = "Add some extra endpoints to ComfyUI to manage / monitor remotely."
 authors = ["brantje <brantje@gmail.com>"]
 license = { text = "MIT License" }
@@ -18,7 +18,7 @@ build-backend = "poetry.core.masonry.api"
 [project]
 name = "comfyui_api_tools" # Unique identifier for your node. Immutable after creation.
 description = "Add some extra endpoints to ComfyUI to manage / monitor remotely."
-version = "1.0.6" # Custom Node version. Must be semantically versioned.
+version = "1.0.7" # Custom Node version. Must be semantically versioned.
 dependencies  = ['pynvml'] # Filled in from requirements.txt
 
 [project.urls]
