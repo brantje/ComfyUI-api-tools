@@ -25,11 +25,13 @@ model_dir_name_map = {
     "diffusion_model": "diffusion_models",
 }
 
-def download_url_with_agent(url, save_path):
+def download_url_with_agent(url, save_path, token=None):
     print(f"Downloading {url} to {save_path}...")
     try:
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
+        if token:
+            headers['Authorization'] = f'Bearer {token}'
 
         req = urllib.request.Request(url, headers=headers)
         response = urllib.request.urlopen(req)
@@ -71,5 +73,5 @@ def install_model_url(json_data):
     if os.path.exists(save_path):
         return False, f"File already exists at path: {save_path}"
 
-    download_url_with_agent(json_data.get('url'), save_path)
+    download_url_with_agent(json_data.get('url'), save_path, json_data.get('token', None))
     return True, "Model installed successfully"
