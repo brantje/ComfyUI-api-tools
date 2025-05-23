@@ -32,12 +32,15 @@ class MetricsRegistry:
         self.gpu_info = CGPUInfo()
 
         # Initialize basic counters and gauges
-        self.add_counter("comfyui_api_requests_total", "Total number of API requests")
-        self.add_counter("comfyui_api_errors_total", "Total number of API errors")
         self.add_gauge("comfyui_uptime_seconds", "ComfyUI server uptime in seconds")
         self.add_gauge("comfyui_memory_usage_bytes", "ComfyUI memory usage in bytes")
+        self.add_gauge("comfyui_memory_free_bytes", "System memory free in bytes")
+        self.add_gauge("comfyui_memory_total_bytes", "System total memory in bytes")
+        self.add_gauge("comfyui_memory_usage_percent", "System memory usage percentage")
         self.add_gauge("comfyui_cpu_usage_percent", "ComfyUI CPU usage percentage")
         self.add_gauge("comfyui_disk_usage_bytes", "ComfyUI disk usage in bytes")
+        self.add_gauge("comfyui_disk_free_bytes", "Disk free space in bytes")
+        self.add_gauge("comfyui_disk_total_bytes", "Disk total space in bytes")
         self.add_gauge("comfyui_disk_usage_percent", "ComfyUI disk usage percentage")
 
         # Initialize GPU metrics
@@ -112,6 +115,12 @@ class MetricsRegistry:
         memory_info = process.memory_info()
         self.set_gauge("comfyui_memory_usage_bytes", memory_info.rss)
 
+        # Update system memory metrics
+        system_memory = psutil.virtual_memory()
+        self.set_gauge("comfyui_memory_free_bytes", system_memory.available)
+        self.set_gauge("comfyui_memory_total_bytes", system_memory.total)
+        self.set_gauge("comfyui_memory_usage_percent", system_memory.percent)
+
         # Update CPU usage
         try:
             cpu_percent = process.cpu_percent(interval=0.1)
@@ -124,6 +133,8 @@ class MetricsRegistry:
             output_dir = folder_paths.get_output_directory()
             disk_usage = psutil.disk_usage(output_dir)
             self.set_gauge("comfyui_disk_usage_bytes", disk_usage.used)
+            self.set_gauge("comfyui_disk_free_bytes", disk_usage.free)
+            self.set_gauge("comfyui_disk_total_bytes", disk_usage.total)
             self.set_gauge("comfyui_disk_usage_percent", disk_usage.percent)
         except:
             pass
