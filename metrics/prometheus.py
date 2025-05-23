@@ -52,7 +52,7 @@ class MetricsRegistry:
 
         # Add PyTorch version info if available
         if TORCH_AVAILABLE:
-            self.add_info("comfyui_pytorch_info", "PyTorch version information", labels={"version": torch.__version__})
+            self.add_gauge("comfyui_pytorch_info", "PyTorch version information", labels={"version": torch.__version__})
 
         # Initialize GPU metrics
         self.add_gauge("comfyui_gpu_utilization_percent", "GPU utilization percentage")
