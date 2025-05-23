@@ -9,6 +9,13 @@ import folder_paths
 # Import GPU info class
 from ..core.gpu_info import CGPUInfo
 
+# Try to import torch, but don't fail if not available
+try:
+    import torch
+    TORCH_AVAILABLE = True
+except ImportError:
+    TORCH_AVAILABLE = False
+
 # Singleton metrics registry
 class MetricsRegistry:
     _instance = None
@@ -42,6 +49,10 @@ class MetricsRegistry:
         self.add_gauge("comfyui_disk_free_bytes", "Disk free space in bytes")
         self.add_gauge("comfyui_disk_total_bytes", "Disk total space in bytes")
         self.add_gauge("comfyui_disk_usage_percent", "ComfyUI disk usage percentage")
+
+        # Add PyTorch version info if available
+        if TORCH_AVAILABLE:
+            self.add_gauge("comfyui_pytorch_info", "PyTorch version information", labels={"version": torch.__version__})
 
         # Initialize GPU metrics
         self.add_gauge("comfyui_gpu_utilization_percent", "GPU utilization percentage")
@@ -109,6 +120,10 @@ class MetricsRegistry:
         """Update system-related metrics"""
         # Update uptime
         self.set_gauge("comfyui_uptime_seconds", time.time() - self.start_time)
+
+        # Set PyTorch version info if available
+        if TORCH_AVAILABLE:
+            self.set_gauge("comfyui_pytorch_info", 1, labels={"version": torch.__version__})
 
         # Update memory usage
         process = psutil.Process(os.getpid())
