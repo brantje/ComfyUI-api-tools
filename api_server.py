@@ -65,7 +65,7 @@ async def get_model_folder(request: Request):
         checkpoints = folder_paths.get_filename_list(folder)
         result = [
             {
-                "name": os.path.basename(folder),
+                "filename": os.path.basename(ckpt),
                 "path": ckpt,
                 "full_path": folder_paths.get_full_path(folder, ckpt) or ckpt,
             }
