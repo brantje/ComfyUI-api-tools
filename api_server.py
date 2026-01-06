@@ -144,16 +144,6 @@ async def download_model(request: Request):
         if not os.path.isfile(full_path):
             return error_resp(404, "Not Found")
 
-        # Ensure the target is inside one of the configured base directories for this folder.
-        real_file = os.path.realpath(full_path)
-        allowed_bases = []
-        for entry in folder_paths.folder_names_and_paths.get(input_folder, []):
-            if isinstance(entry, (list, tuple)) and entry:
-                allowed_bases.append(os.path.realpath(entry[0]))
-        if allowed_bases and not any(
-            real_file == base or real_file.startswith(base + os.sep) for base in allowed_bases
-        ):
-            return error_resp(403, "Requested file is outside the allowed model directories")
 
         content_type, _ = mimetypes.guess_type(full_path)
         resp = FileResponse(path=full_path)
