@@ -2,7 +2,8 @@ import logging
 import os
 import traceback
 from urllib.parse import urlparse
-from aiohttp.web import Request, json_response
+import mimetypes
+from aiohttp.web import FileResponse, Request, json_response
 from server import PromptServer
 import folder_paths
 
@@ -109,6 +110,59 @@ async def remove_model(request: Request):
 
 
     except Exception as e:
+        return error_resp(500, str(e))
+
+
+@routes.get("/api-tools/v1/models/{folder}/{model:.+}/download")
+async def download_model(request: Request):
+    """Download a model file from the file system."""
+    input_folder = request.match_info.get("folder")
+    model_input = request.match_info.get("model")
+
+    if not input_folder:
+        return error_resp(400, "folder is required")
+
+    if input_folder not in folder_paths.folder_names_and_paths:
+        return error_resp(400, "invalid folder")
+
+    if not model_input:
+        return error_resp(400, "model is required")
+
+    # Basic traversal checks; final enforcement is done by validating resolved path is inside allowed bases.
+    if model_input.startswith(("/", "\\")) or "\\" in model_input:
+        return error_resp(400, "invalid model path")
+    if any(part == ".." for part in model_input.split("/")):
+        return error_resp(400, "invalid model path")
+
+    try:
+        # Only allow downloading files that appear in ComfyUI's model index for this folder.
+        models = folder_paths.get_filename_list(input_folder)
+        if model_input not in models:
+            return error_resp(404, "Not Found")
+
+        full_path = folder_paths.get_full_path(input_folder, model_input) or model_input
+        if not os.path.isfile(full_path):
+            return error_resp(404, "Not Found")
+
+        # Ensure the target is inside one of the configured base directories for this folder.
+        real_file = os.path.realpath(full_path)
+        allowed_bases = []
+        for entry in folder_paths.folder_names_and_paths.get(input_folder, []):
+            if isinstance(entry, (list, tuple)) and entry:
+                allowed_bases.append(os.path.realpath(entry[0]))
+        if allowed_bases and not any(
+            real_file == base or real_file.startswith(base + os.sep) for base in allowed_bases
+        ):
+            return error_resp(403, "Requested file is outside the allowed model directories")
+
+        content_type, _ = mimetypes.guess_type(full_path)
+        resp = FileResponse(path=full_path)
+        resp.headers["Content-Disposition"] = f'attachment; filename="{os.path.basename(full_path)}"'
+        if content_type:
+            resp.content_type = content_type
+        return resp
+    except Exception as e:
+        logging.error("Error downloading model", exc_info=True)
         return error_resp(500, str(e))
 
 
