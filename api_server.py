@@ -14,6 +14,32 @@ from .model_utils.install import install_model_url
 routes = PromptServer.instance.routes
 
 
+def _normalize_rel_model_path(p: str) -> str:
+    """
+    Normalize a user-provided relative model path for comparison.
+    - Accept both '/' and '\\' as separators (Windows clients often send '\\').
+    - Reject absolute paths, traversal, and suspicious segments.
+    """
+    if not isinstance(p, str):
+        raise ValueError("invalid model path")
+
+    if p.startswith(("/", "\\")):
+        raise ValueError("invalid model path")
+
+    # Normalize separators to posix for consistent matching.
+    p2 = p.replace("\\", "/")
+
+    # Reject drive letters / URI-like / ADS-like patterns.
+    if ":" in p2:
+        raise ValueError("invalid model path")
+
+    parts = p2.split("/")
+    if any(part in ("", ".", "..") for part in parts):
+        raise ValueError("invalid model path")
+
+    return "/".join(parts)
+
+
 def success_resp(**kwargs):
     return json_response({"code": 200, "message": "success", **kwargs})
 
@@ -94,20 +120,51 @@ async def remove_model(request: Request):
     input_folder = request.match_info['folder']
     model_input = request.match_info['model']
     try:
-        models = folder_paths.get_filename_list(input_folder)
-        full_path = None
-        for model in models:
-            if model == model_input:
-                model_full_path = folder_paths.get_full_path(input_folder, model)
-                full_path = model_full_path
+        # Basic traversal checks
+        try:
+            normalized_model_input = _normalize_rel_model_path(model_input)
+        except ValueError as e:
+            return error_resp(400, str(e))
+
+        # Get the base folder path for this model type
+        folder_paths_list = folder_paths.folder_names_and_paths.get(input_folder)
+        if not folder_paths_list:
+            return error_resp(404, f"Folder '{input_folder}' not found")
+
+        base_folder_path = folder_paths_list[0][0]  # First path in the list
+
+        # Walk through the folder tree to find the matching file
+        matched_full_path = None
+
+        for root, dirs, files in os.walk(base_folder_path):
+            for file in files:
+                file_path = os.path.join(root, file)
+                # Get the relative path from the base folder
+                rel_path = os.path.relpath(file_path, base_folder_path)
+                # Normalize separators for comparison
+                rel_path_normalized = rel_path.replace("\\", "/")
+
+                # Check if this file matches the requested model path
+                if (rel_path == model_input or
+                    rel_path == normalized_model_input or
+                    rel_path_normalized == normalized_model_input):
+                    matched_full_path = file_path
+                    break
+            if matched_full_path:
                 break
 
-        if full_path:
-            os.remove(full_path)
-            return success_resp(result=full_path)
-        else:
+        if matched_full_path is None:
+            return error_resp(404, 'Model not found')
+
+        # Additional security check: ensure the matched path is still within the base folder
+        if not os.path.commonpath([os.path.abspath(matched_full_path), os.path.abspath(base_folder_path)]) == os.path.abspath(base_folder_path):
+            return error_resp(403, "Access denied")
+
+        if not os.path.isfile(matched_full_path):
             return error_resp(404, 'Not Found')
 
+        os.remove(matched_full_path)
+        return success_resp(result=matched_full_path)
 
     except Exception as e:
         return error_resp(500, str(e))
@@ -122,32 +179,56 @@ async def download_model(request: Request):
     if not input_folder:
         return error_resp(400, "folder is required")
 
-    if input_folder not in folder_paths.folder_names_and_paths:
-        return error_resp(400, "invalid folder")
-
     if not model_input:
         return error_resp(400, "model is required")
 
-    # Basic traversal checks; final enforcement is done by validating resolved path is inside allowed bases.
-    if model_input.startswith(("/", "\\")) or "\\" in model_input:
-        return error_resp(400, "invalid model path")
-    if any(part == ".." for part in model_input.split("/")):
-        return error_resp(400, "invalid model path")
+    # Basic traversal checks; final enforcement is done by validating the path is present in ComfyUI's model index.
+    try:
+        normalized_model_input = _normalize_rel_model_path(model_input)
+    except ValueError as e:
+        return error_resp(400, str(e))
 
     try:
-        # Only allow downloading files that appear in ComfyUI's model index for this folder.
-        models = folder_paths.get_filename_list(input_folder)
-        if model_input not in models:
+        folder_paths_list = folder_paths.folder_names_and_paths.get(input_folder)
+        if not folder_paths_list:
+            return error_resp(404, f"Folder '{input_folder}' not found")
+
+        base_folder_path = folder_paths_list[0][0]  # First path in the list
+
+        # Walk through the folder tree to find the matching file
+        # This handles subdirectories properly for both Windows and Linux
+        matched_full_path = None
+
+        for root, dirs, files in os.walk(base_folder_path):
+            for file in files:
+                file_path = os.path.join(root, file)
+                # Get the relative path from the base folder
+                rel_path = os.path.relpath(file_path, base_folder_path)
+                # Normalize separators for comparison
+                rel_path_normalized = rel_path.replace("\\", "/")
+
+                # Check if this file matches the requested model path
+                if (rel_path == model_input or
+                    rel_path == normalized_model_input or
+                    rel_path_normalized == normalized_model_input):
+                    matched_full_path = file_path
+                    break
+            if matched_full_path:
+                break
+
+        if matched_full_path is None:
+            return error_resp(404, "Model not found")
+
+        # Additional security check: ensure the matched path is still within the base folder
+        if not os.path.commonpath([os.path.abspath(matched_full_path), os.path.abspath(base_folder_path)]) == os.path.abspath(base_folder_path):
+            return error_resp(403, "Access denied")
+
+        if not os.path.isfile(matched_full_path):
             return error_resp(404, "Not Found")
 
-        full_path = folder_paths.get_full_path(input_folder, model_input) or model_input
-        if not os.path.isfile(full_path):
-            return error_resp(404, "Not Found")
-
-
-        content_type, _ = mimetypes.guess_type(full_path)
-        resp = FileResponse(path=full_path)
-        resp.headers["Content-Disposition"] = f'attachment; filename="{os.path.basename(full_path)}"'
+        content_type, _ = mimetypes.guess_type(matched_full_path)
+        resp = FileResponse(path=matched_full_path)
+        resp.headers["Content-Disposition"] = f'attachment; filename="{os.path.basename(matched_full_path)}"'
         if content_type:
             resp.content_type = content_type
         return resp
